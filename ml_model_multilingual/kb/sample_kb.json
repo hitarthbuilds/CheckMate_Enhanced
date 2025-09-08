@@ -1,0 +1,23 @@
+[
+  {
+    "id": "kb1",
+    "claim": "The government has banned all exams nationwide.",
+    "verdict": "False",
+    "source": "https://www.pib.gov.in/pressrelease",
+    "summary": "PIB clarifies there is no ban on exams."
+  },
+  {
+    "id": "kb2",
+    "claim": "A new vaccine causes infertility.",
+    "verdict": "False",
+    "source": "https://www.altnews.in/claim-vaccine",
+    "summary": "AltNews debunks the vaccine infertility rumor."
+  },
+  {
+    "id": "kb3",
+    "claim": "Electric vehicles reduce air pollution.",
+    "verdict": "True",
+    "source": "https://www.researchsource.org/ev-benefits",
+    "summary": "Multiple studies show EVs reduce urban emissions when powered by clean grids."
+  }
+]
