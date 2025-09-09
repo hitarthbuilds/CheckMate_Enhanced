@@ -1,66 +1,42 @@
 # app/main.py
-from fastapi import FastAPI, HTTPException
+
+from fastapi import FastAPI
 from pydantic import BaseModel
 from ml_model_multilingual.model import TruthModel
-from typing import List, Dict
-import uvicorn
-import os
-import datetime
+from ml_model_multilingual.evidence import fetch_evidence
 
-app = FastAPI(title="TruthLens Backend (Multilingual)")
+app = FastAPI(title="CheckMate: Fact-Checker + Propaganda Detection")
 
-MODEL = TruthModel()  # instantiate model once at server start
+# Initialize model once
+MODEL = TruthModel()
 
-# In-memory history (simple for demo; swap with DB for production)
-HISTORY: List[Dict] = []
-
-class PredictRequest(BaseModel):
-    text: str
-
-class FeedbackRequest(BaseModel):
+# Input schema
+class ClaimInput(BaseModel):
     claim: str
-    correct_label: str
-    notes: str = None
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "time": datetime.datetime.utcnow().isoformat()}
+@app.get("/")
+async def root():
+    return {"message": "CheckMate API running. POST to /predict with claim only."}
 
 @app.post("/predict")
-def predict(req: PredictRequest):
-    text = req.text.strip()
-    if not text:
-        raise HTTPException(status_code=400, detail="Empty text")
+async def predict_endpoint(data: ClaimInput):
+    try:
+        # Auto-fetch evidence
+        evidence = fetch_evidence(data.claim)
 
-    res = MODEL.assess(text)
-    record = {
-        "claim": text,
-        "final_label": res.get("final_label"),
-        "final_confidence": res.get("final_confidence"),
-        "ts": datetime.datetime.utcnow().isoformat()
-    }
-    HISTORY.append(record)
-    # keep history size bounded for demo
-    if len(HISTORY) > 1000:
-        HISTORY.pop(0)
-    return res
+        # Fact-check
+        fact_result = MODEL.predict(data.claim, evidence)
 
-@app.get("/history")
-def get_history(limit: int = 50):
-    return {"count": len(HISTORY), "history": HISTORY[-limit:]}
+        # Propaganda check
+        propaganda_result = MODEL.propaganda_check(data.claim)
 
-@app.post("/feedback")
-def feedback(req: FeedbackRequest):
-    # For hackathon demo, append feedback to history store
-    entry = {
-        "claim": req.claim,
-        "correct_label": req.correct_label,
-        "notes": req.notes,
-        "ts": datetime.datetime.utcnow().isoformat()
-    }
-    HISTORY.append({"feedback": entry})
-    return {"status": "ok", "saved": entry}
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
+        # Return combined result
+        return {
+            "success": True,
+            "claim": data.claim,
+            "evidence": evidence,
+            "fact_check": fact_result,
+            "propaganda_check": propaganda_result
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
